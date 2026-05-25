@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>管理後台 — Unique Green</title>
+<link rel="stylesheet" href="../css/main.css">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+
+<div class="mobile-header">
+  <button class="hamburger" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
+  <span class="brand-name">Unique Green</span>
+  <span style="width:32px;"></span>
+</div>
+<div class="sidebar-overlay" id="overlay" onclick="closeSidebar()"></div>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <img data-brand-logo src="" alt="UG" style="height:32px;">
+    <div class="brand-text">
+      <div class="brand-name">Unique Green</div>
+      <div class="tagline">營運管理系統</div>
+    </div>
+  </div>
+  <div class="sidebar-nav">
+    <div class="nav-group-label">總覽</div>
+    <a class="nav-item" href="../index.html" data-page="index.html"><i class="fa-solid fa-chart-line"></i>儀表板</a>
+    <a class="nav-item" href="alerts.html" data-page="alerts.html"><i class="fa-solid fa-bell"></i>異常警示<span class="nav-badge" id="alertCount"></span></a>
+    <div class="nav-group-label">門市管理</div>
+    <a class="nav-item" href="stores.html" data-page="stores.html"><i class="fa-solid fa-store"></i>門市列表</a>
+    <div class="nav-group-label">業績分析</div>
+    <a class="nav-item" href="psd.html" data-page="psd.html"><i class="fa-solid fa-calendar-days"></i>PSD 基準明細</a>
+    <div class="nav-group-label">系統</div>
+    <a class="nav-item" href="settings.html" data-page="settings.html"><i class="fa-solid fa-gear"></i>管理後台</a>
+    <a class="nav-item" href="import.html" data-page="import.html"><i class="fa-solid fa-file-arrow-up"></i>匯入資料</a>
+  </div>
+  <div class="sidebar-footer">
+    <div class="avatar-row">
+      <div class="avatar">督</div>
+      <div>
+        <div class="avatar-name">陳督導</div>
+        <div class="avatar-role">北部區域督導</div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <span class="page-title">管理後台</span>
+      <span class="breadcrumb">/ 系統設定</span>
+    </div>
+    <div class="topbar-right">
+      <span class="date-pill"><i class="fa-regular fa-calendar"></i><span id="todayDate"></span></span>
+      <button class="btn primary keep-mobile" onclick="saveAll()"><i class="fa-solid fa-floppy-disk"></i>儲存設定</button>
+    </div>
+  </div>
+  <div class="content">
+
+    <!-- Alert threshold -->
+    <div class="settings-card">
+      <div class="sh"><i class="fa-solid fa-bell" style="color:var(--ug-green);"></i>業績異常警示閾值</div>
+      <div class="field-row">
+        <div>
+          <div class="field-label">比較基準模式</div>
+          <div class="field-sub">選擇與哪個歷史基準進行比對</div>
+        </div>
+        <select id="baseMode" style="font-size:13px;padding:7px 12px;border-radius:var(--radius-sm);border:1px solid var(--ug-border);color:var(--ug-text-dark);background:#fff;outline:none;">
+          <option value="psd">前月周間 PSD（各店個別）</option>
+          <option value="wow">上週同日</option>
+          <option value="ma14">14日移動平均</option>
+          <option value="ma30">30日移動平均</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <div>
+          <div class="field-label">🔴 紅色警示（嚴重異常）</div>
+          <div class="field-sub" id="redDesc">跌幅 ≥ 20% — 立即關注</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <input type="range" min="5" max="50" step="1" id="redSlider" value="20" style="width:120px;" oninput="syncSliders()">
+          <span class="pv rv" id="redVal">20%</span>
+        </div>
+      </div>
+      <div class="field-row">
+        <div>
+          <div class="field-label">🟡 黃色注意（輕度異常）</div>
+          <div class="field-sub" id="ambDesc">跌幅 10–19% — 持續觀察</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <input type="range" min="1" max="40" step="1" id="ambSlider" value="10" style="width:120px;" oninput="syncSliders()">
+          <span class="pv av" id="ambVal">10%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notification -->
+    <div class="settings-card">
+      <div class="sh"><i class="fa-solid fa-paper-plane" style="color:var(--ug-green);"></i>通知方式</div>
+      <div class="field-row">
+        <div>
+          <div class="field-label">LINE Notify 通知</div>
+          <div class="field-sub">觸發警示時推送 LINE 訊息</div>
+        </div>
+        <label class="toggle"><input type="checkbox" id="togLine"><span class="tks"></span></label>
+      </div>
+      <div class="field-row">
+        <div>
+          <div class="field-label">Email 通知</div>
+          <div class="field-sub">發送至督導信箱</div>
+        </div>
+        <label class="toggle"><input type="checkbox" id="togEmail"><span class="tks"></span></label>
+      </div>
+      <div class="field-row">
+        <div>
+          <div class="field-label">通知冷卻時間</div>
+          <div class="field-sub">同一門市重複觸發的最小間隔</div>
+        </div>
+        <select id="cooldown" style="font-size:13px;padding:7px 12px;border-radius:var(--radius-sm);border:1px solid var(--ug-border);color:var(--ug-text-dark);background:#fff;outline:none;">
+          <option value="1">每 1 小時最多一次</option>
+          <option value="4">每 4 小時最多一次</option>
+          <option value="24">每天最多一次</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Data management -->
+    <div class="settings-card">
+      <div class="sh"><i class="fa-solid fa-database" style="color:var(--ug-green);"></i>資料管理</div>
+      <div class="field-row">
+        <div>
+          <div class="field-label">重置為預設示範資料</div>
+          <div class="field-sub">清除匯入的 Excel 資料，恢復系統示範模式</div>
+        </div>
+        <button class="btn danger" onclick="resetData()"><i class="fa-solid fa-rotate-left"></i>重置資料</button>
+      </div>
+      <div class="field-row">
+        <div>
+          <div class="field-label">匯入新業績資料</div>
+          <div class="field-sub">上傳最新的 Excel 業績報表</div>
+        </div>
+        <a href="import.html" class="btn primary"><i class="fa-solid fa-file-arrow-up"></i>前往匯入 →</a>
+      </div>
+    </div>
+
+    <!-- Save bar -->
+    <div class="save-bar">
+      <span style="font-size:13px;color:var(--ug-text-mid);"><i class="fa-solid fa-circle-info" style="margin-right:4px;"></i>設定變更後點擊儲存才會生效</span>
+      <button class="btn primary" onclick="saveAll()"><i class="fa-solid fa-floppy-disk"></i>儲存設定</button>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="../js/logo.js"></script>
+<script src="../js/shared.js"></script>
+<script>
+function syncSliders() {
+  const r = parseInt(document.getElementById('redSlider').value);
+  const a = parseInt(document.getElementById('ambSlider').value);
+  if (a >= r) document.getElementById('ambSlider').value = r - 1;
+  const av = parseInt(document.getElementById('ambSlider').value);
+  document.getElementById('redVal').textContent = r + '%';
+  document.getElementById('ambVal').textContent = av + '%';
+  document.getElementById('redDesc').textContent = `跌幅 ≥ ${r}% — 立即關注`;
+  document.getElementById('ambDesc').textContent = `跌幅 ${av}–${r-1}% — 持續觀察`;
+}
+
+function saveAll() {
+  const s = {
+    redPct:      parseInt(document.getElementById('redSlider').value),
+    ambPct:      parseInt(document.getElementById('ambSlider').value),
+    baseMode:    document.getElementById('baseMode').value,
+    lineNotify:  document.getElementById('togLine').checked,
+    emailNotify: document.getElementById('togEmail').checked,
+    cooldown:    parseInt(document.getElementById('cooldown').value),
+  };
+  saveSettings(s);
+  showToast('✓ 設定已儲存');
+}
+
+function resetData() {
+  if (!confirm('確認重置為示範資料？這會清除所有匯入的 Excel 資料。')) return;
+  localStorage.removeItem('ug_store_data');
+  showToast('✓ 已重置為示範資料');
+  setTimeout(() => location.href = '../index.html', 1500);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const cfg = getSettings();
+  document.getElementById('redSlider').value = cfg.redPct;
+  document.getElementById('ambSlider').value = cfg.ambPct;
+  document.getElementById('baseMode').value  = cfg.baseMode;
+  document.getElementById('togLine').checked  = cfg.lineNotify;
+  document.getElementById('togEmail').checked = cfg.emailNotify;
+  document.getElementById('cooldown').value  = cfg.cooldown;
+  syncSliders();
+});
+</script>
+</body>
+</html>
