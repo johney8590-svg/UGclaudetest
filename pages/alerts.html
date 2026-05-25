@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>異常警示 — Unique Green</title>
+<link rel="stylesheet" href="../css/main.css">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+
+<div class="mobile-header">
+  <button class="hamburger" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
+  <span class="brand-name">Unique Green</span>
+  <span style="width:32px;"></span>
+</div>
+<div class="sidebar-overlay" id="overlay" onclick="closeSidebar()"></div>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <img data-brand-logo src="" alt="UG" style="height:32px;">
+    <div class="brand-text">
+      <div class="brand-name">Unique Green</div>
+      <div class="tagline">營運管理系統</div>
+    </div>
+  </div>
+  <div class="sidebar-nav">
+    <div class="nav-group-label">總覽</div>
+    <a class="nav-item" href="../index.html" data-page="index.html"><i class="fa-solid fa-chart-line"></i>儀表板</a>
+    <a class="nav-item" href="alerts.html" data-page="alerts.html"><i class="fa-solid fa-bell"></i>異常警示<span class="nav-badge" id="alertCount"></span></a>
+    <div class="nav-group-label">門市管理</div>
+    <a class="nav-item" href="stores.html" data-page="stores.html"><i class="fa-solid fa-store"></i>門市列表</a>
+    <div class="nav-group-label">業績分析</div>
+    <a class="nav-item" href="psd.html" data-page="psd.html"><i class="fa-solid fa-calendar-days"></i>PSD 基準明細</a>
+    <div class="nav-group-label">系統</div>
+    <a class="nav-item" href="settings.html" data-page="settings.html"><i class="fa-solid fa-gear"></i>管理後台</a>
+    <a class="nav-item" href="import.html" data-page="import.html"><i class="fa-solid fa-file-arrow-up"></i>匯入資料</a>
+  </div>
+  <div class="sidebar-footer">
+    <div class="avatar-row">
+      <div class="avatar">督</div>
+      <div>
+        <div class="avatar-name">陳督導</div>
+        <div class="avatar-role">北部區域督導</div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <span class="page-title">異常警示</span>
+      <span class="breadcrumb">/ 今日狀況</span>
+    </div>
+    <div class="topbar-right">
+      <span class="date-pill"><i class="fa-regular fa-calendar"></i><span id="todayDate"></span></span>
+      <a href="settings.html" class="btn primary keep-mobile"><i class="fa-solid fa-sliders"></i>調整閾值</a>
+    </div>
+  </div>
+  <div class="content">
+
+    <!-- KPI summary -->
+    <div class="metrics-grid" id="alertMetrics" style="grid-template-columns:repeat(3,1fr);"></div>
+
+    <!-- Alert cards -->
+    <div id="redSection" class="section-gap"></div>
+    <div id="ambSection" class="section-gap"></div>
+    <div id="normalSection"></div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="../js/logo.js"></script>
+<script src="../js/shared.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const stores = getStores(), cfg = getSettings();
+  const reds  = stores.filter(s => getAlert(s,cfg) === 'red');
+  const ambs  = stores.filter(s => getAlert(s,cfg) === 'amber');
+  const norms = stores.filter(s => !getAlert(s,cfg));
+
+  document.getElementById('alertMetrics').innerHTML = `
+    <div class="mc">
+      <div class="lb"><i class="fa-solid fa-circle-exclamation" style="color:#dc2626;"></i>嚴重異常</div>
+      <div class="vl" style="color:#dc2626;">${reds.length} 間</div>
+      <div class="sb dn">跌幅 ≥ ${cfg.redPct}%</div>
+    </div>
+    <div class="mc">
+      <div class="lb"><i class="fa-solid fa-triangle-exclamation" style="color:#d97706;"></i>注意觀察</div>
+      <div class="vl" style="color:#d97706;">${ambs.length} 間</div>
+      <div class="sb wn">跌幅 ${cfg.ambPct}–${cfg.redPct-1}%</div>
+    </div>
+    <div class="mc">
+      <div class="lb"><i class="fa-solid fa-circle-check" style="color:#16a34a;"></i>正常門市</div>
+      <div class="vl" style="color:#16a34a;">${norms.length} 間</div>
+      <div class="sb up">達標或持平</div>
+    </div>
+  `;
+
+  function card(s) {
+    const b = getBase(s), p = pctDiff(s.today, b), al = getAlert(s, cfg);
+    const borderColor = al==='red' ? 'var(--red)' : al==='amber' ? 'var(--amber)' : 'var(--green-ok)';
+    const bg  = al==='red' ? 'var(--red-bg)' : al==='amber' ? 'var(--amber-bg)' : '#f0faf3';
+    const dc  = al==='red' ? 'var(--red)' : al==='amber' ? 'var(--amber)' : 'var(--green-ok)';
+    const bw  = Math.min(100, Math.round(s.today/b*100));
+    return `<div style="background:${bg};border:1px solid ${al==='red'?'var(--red-bd)':al==='amber'?'var(--amber-bd)':'var(--ug-border)'};border-left:4px solid ${borderColor};border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;box-shadow:var(--sh-sm);">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--ug-text-dark);">${s.name}</div>
+          <div style="font-size:12px;color:var(--ug-text-muted);margin-top:2px;">${s.area}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:20px;font-weight:700;">$${s.today.toLocaleString()}</div>
+          <div style="font-size:12px;color:${dc};margin-top:2px;font-weight:600;">${p>=0?'▲':'▼'} ${Math.abs(p)}% vs PSD $${b.toLocaleString()}</div>
+        </div>
+      </div>
+      <div style="margin-top:12px;">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ug-text-muted);margin-bottom:4px;">
+          <span>達成率</span><span style="color:${dc};font-weight:600;">${bw}%</span>
+        </div>
+        <div style="background:rgba(255,255,255,.6);border-radius:4px;height:7px;overflow:hidden;">
+          <div style="height:7px;border-radius:4px;background:${borderColor};width:${bw}%;transition:width .6s;"></div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  if (reds.length) {
+    document.getElementById('redSection').innerHTML =
+      `<div class="section-title" style="color:#dc2626;"><i class="fa-solid fa-circle-exclamation"></i>嚴重異常門市</div>` +
+      reds.map(card).join('');
+  }
+  if (ambs.length) {
+    document.getElementById('ambSection').innerHTML =
+      `<div class="section-title" style="color:#d97706;"><i class="fa-solid fa-triangle-exclamation"></i>注意觀察門市</div>` +
+      ambs.map(card).join('');
+  }
+  if (norms.length) {
+    document.getElementById('normalSection').innerHTML =
+      `<div class="section-title"><i class="fa-solid fa-circle-check" style="color:var(--ug-green);"></i>正常門市</div>` +
+      norms.map(card).join('');
+  }
+});
+</script>
+</body>
+</html>
