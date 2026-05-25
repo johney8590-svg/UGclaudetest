@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PSD 基準明細 — Unique Green</title>
+<link rel="stylesheet" href="../css/main.css">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+</head>
+<body>
+
+<div class="mobile-header">
+  <button class="hamburger" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
+  <span class="brand-name">Unique Green</span>
+  <span style="width:32px;"></span>
+</div>
+<div class="sidebar-overlay" id="overlay" onclick="closeSidebar()"></div>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <img data-brand-logo src="" alt="UG" style="height:32px;">
+    <div class="brand-text">
+      <div class="brand-name">Unique Green</div>
+      <div class="tagline">營運管理系統</div>
+    </div>
+  </div>
+  <div class="sidebar-nav">
+    <div class="nav-group-label">總覽</div>
+    <a class="nav-item" href="../index.html" data-page="index.html"><i class="fa-solid fa-chart-line"></i>儀表板</a>
+    <a class="nav-item" href="alerts.html" data-page="alerts.html"><i class="fa-solid fa-bell"></i>異常警示<span class="nav-badge" id="alertCount"></span></a>
+    <div class="nav-group-label">門市管理</div>
+    <a class="nav-item" href="stores.html" data-page="stores.html"><i class="fa-solid fa-store"></i>門市列表</a>
+    <div class="nav-group-label">業績分析</div>
+    <a class="nav-item" href="psd.html" data-page="psd.html"><i class="fa-solid fa-calendar-days"></i>PSD 基準明細</a>
+    <div class="nav-group-label">系統</div>
+    <a class="nav-item" href="settings.html" data-page="settings.html"><i class="fa-solid fa-gear"></i>管理後台</a>
+    <a class="nav-item" href="import.html" data-page="import.html"><i class="fa-solid fa-file-arrow-up"></i>匯入資料</a>
+  </div>
+  <div class="sidebar-footer">
+    <div class="avatar-row">
+      <div class="avatar">督</div>
+      <div>
+        <div class="avatar-name">陳督導</div>
+        <div class="avatar-role">北部區域督導</div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <span class="page-title">PSD 基準明細</span>
+      <span class="breadcrumb">/ 各店個別基準</span>
+    </div>
+    <div class="topbar-right">
+      <span class="date-pill"><i class="fa-regular fa-calendar"></i><span id="todayDate"></span></span>
+    </div>
+  </div>
+  <div class="content">
+
+    <!-- Store selector -->
+    <div class="card section-gap" style="padding:14px 16px;">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <label style="font-size:13px;color:var(--ug-text-muted);font-weight:500;">選擇門市：</label>
+        <select id="storeSel" style="font-size:13px;padding:7px 12px;border-radius:var(--radius-sm);border:1px solid var(--ug-border);color:var(--ug-text-dark);background:#fff;outline:none;cursor:pointer;"></select>
+        <span class="badge b-g" id="storeArea" style="padding:4px 10px;"></span>
+      </div>
+    </div>
+
+    <!-- Charts row -->
+    <div class="charts-row">
+      <div class="card">
+        <div class="card-hd"><i class="fa-solid fa-chart-bar" style="color:var(--ug-green);"></i>各星期幾 PSD 基準</div>
+        <div style="position:relative;height:200px;"><canvas id="psdChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><i class="fa-solid fa-chart-line" style="color:var(--ug-green);"></i>近7日實際 vs PSD</div>
+        <div style="position:relative;height:200px;"><canvas id="weekChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Rank list + PSD table -->
+    <div class="charts-row">
+      <div class="table-card">
+        <div class="card-hd" style="margin-bottom:12px;"><i class="fa-solid fa-calendar-week" style="color:var(--ug-green);"></i>週間 PSD 明細</div>
+        <table class="dt" id="psdTable">
+          <thead><tr><th>星期</th><th>PSD 基準</th><th>今日業績</th><th>vs 基準</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="table-card">
+        <div class="card-hd" style="margin-bottom:12px;"><i class="fa-solid fa-sort-amount-down" style="color:var(--ug-green);"></i>全品牌今日排行</div>
+        <div id="rankList" style="overflow-y:auto;max-height:280px;"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="../js/logo.js"></script>
+<script src="../js/shared.js"></script>
+<script>
+const stores = getStores(), cfg = getSettings();
+const DOW_NAMES = ['日','一','二','三','四','五','六'], DOW = getTodayDOW();
+let psdChart = null, weekChart = null;
+
+function populate() {
+  const sel = document.getElementById('storeSel');
+  stores.forEach(s => {
+    const o = document.createElement('option');
+    o.value = s.id; o.textContent = s.name; sel.appendChild(o);
+  });
+  sel.addEventListener('change', renderStore);
+  renderStore(); renderRank();
+}
+
+function renderStore() {
+  const s = stores.find(x => x.id === parseInt(document.getElementById('storeSel').value));
+  if (!s) return;
+  document.getElementById('storeArea').textContent = s.area;
+  const dowOrder = [1,2,3,4,5,6,0];
+  const tbody = document.querySelector('#psdTable tbody'); tbody.innerHTML = '';
+  dowOrder.forEach(d => {
+    const base = s.psd[d], isToday = d===DOW;
+    const p = isToday ? pctDiff(s.today, base) : null;
+    const dHtml = isToday
+      ? (p>=0 ? `<span class="up fw6">▲${p}%</span>`
+               : Math.abs(p)>=cfg.redPct ? `<span class="dn fw6">▼${Math.abs(p)}% 異常</span>`
+               : Math.abs(p)>=cfg.ambPct ? `<span class="wn fw6">▼${Math.abs(p)}% 注意</span>`
+               : `<span class="dn fw6">▼${Math.abs(p)}%</span>`)
+      : '<span style="color:var(--ug-text-muted);">—</span>';
+    tbody.innerHTML += `<tr style="${isToday?'background:var(--ug-green-light);font-weight:600;':''}">
+      <td>週${DOW_NAMES[d]}${isToday?' <span class="badge b-g" style="font-size:9px;padding:1px 6px;">今天</span>':''}</td>
+      <td>$${base.toLocaleString()}</td>
+      <td>${isToday?'$'+s.today.toLocaleString():'—'}</td>
+      <td>${dHtml}</td>
+    </tr>`;
+  });
+
+  // PSD bar chart
+  if (psdChart) psdChart.destroy();
+  psdChart = new Chart(document.getElementById('psdChart'), {
+    type: 'bar',
+    data: {
+      labels: dowOrder.map(d => '週'+DOW_NAMES[d]),
+      datasets: [{
+        label: 'PSD',
+        data: dowOrder.map(d => s.psd[d]),
+        backgroundColor: dowOrder.map(d => d===DOW ? '#1f8c3b' : '#a7d7b4'),
+        borderWidth: 0, borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { font:{size:11}, color:'#4e8060' }, grid: { display:false } },
+        y: { ticks: { font:{size:10}, color:'#4e8060', callback: v => '$'+Math.round(v/1000)+'k' }, grid: { color:'rgba(78,128,96,.1)' } }
+      }
+    }
+  });
+
+  // Weekly trend line chart
+  const trend = getStoreDailyTrend(s.id, 7);
+  if (weekChart) weekChart.destroy();
+  weekChart = new Chart(document.getElementById('weekChart'), {
+    type: 'line',
+    data: {
+      labels: trend.map(d => d.label),
+      datasets: [
+        {
+          label: '業績',
+          data: trend.map(d => d.actual),
+          borderColor: '#1f8c3b', backgroundColor: 'rgba(31,140,59,.08)',
+          tension: .4, fill: true, pointRadius: 4, borderWidth: 2, pointBackgroundColor: '#1f8c3b',
+        },
+        {
+          label: 'PSD',
+          data: trend.map(d => d.base),
+          borderColor: '#a7d7b4', borderDash: [5,4],
+          tension: .4, fill: false, pointRadius: 0, borderWidth: 1.5,
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { font:{size:10}, color:'#4e8060' }, grid: { display:false } },
+        y: { ticks: { font:{size:10}, color:'#4e8060', callback: v => '$'+Math.round(v/1000)+'k' }, grid: { color:'rgba(78,128,96,.1)' } }
+      }
+    }
+  });
+}
+
+function renderRank() {
+  const sorted = [...stores]
+    .map(s => ({ ...s, p: pctDiff(s.today, getBase(s)), al: getAlert(s, cfg) }))
+    .sort((a,b) => b.p - a.p);
+  const MEDALS = ['🥇','🥈','🥉'];
+  document.getElementById('rankList').innerHTML = sorted.map((s, i) => {
+    const dc = s.al==='red' ? '#dc2626' : s.al==='amber' ? '#d97706' : s.p>=0 ? '#16a34a' : '#4e8060';
+    const bg = s.al==='red' ? 'var(--red-bg)' : s.al==='amber' ? 'var(--amber-bg)' : '#fff';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:${bg};border-bottom:1px solid var(--ug-border);">
+      <span style="font-size:${i<3?'16px':'12px'};width:22px;text-align:center;">${i<3?MEDALS[i]:i+1}</span>
+      <span style="font-size:12px;font-weight:600;flex:1;color:var(--ug-text-dark);">${s.name}</span>
+      <span style="font-size:12px;color:${dc};font-weight:600;">${s.p>=0?'▲':'▼'}${Math.abs(s.p)}%</span>
+    </div>`;
+  }).join('');
+}
+
+document.addEventListener('DOMContentLoaded', populate);
+</script>
+</body>
+</html>
